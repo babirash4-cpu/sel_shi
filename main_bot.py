@@ -1726,6 +1726,20 @@ class TelegramAuthBot(AdminPanelMixin):
             if daily_cost > 0
             else None
         )
+        # A freshly activated self has no subscription yet. Without an
+        # explicit expiration_date the self bot's is_self_valid() fails
+        # closed and it self-terminates within a minute of login.
+        with db_connect(USERS_DB, timeout=10) as conn:
+            existing_expiry = conn.execute(
+                "SELECT expiration_date FROM users WHERE user_id = ?",
+                (int(user_id),),
+            ).fetchone()
+        has_expiry = bool(existing_expiry and str(existing_expiry[0] or "").strip())
+        default_expiry = (
+            (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S")
+            if not has_expiry
+            else None
+        )
         with db_connect(USERS_DB) as conn:
             conn.execute(
                 '''INSERT INTO users (
@@ -1733,11 +1747,12 @@ class TelegramAuthBot(AdminPanelMixin):
                        self_pid, session_file, self_enabled, self_status,
                        self_last_error, self_last_started_at,
                        self_consecutive_failures, self_next_restart_at,
-                       self_last_billed_at, self_next_billing_at, updated_at
+                       self_last_billed_at, self_next_billing_at,
+                       expiration_date, updated_at
                    )
                    VALUES (
                        ?, ?, ?, datetime('now'), 1, ?, ?, 1, 'running',
-                       NULL, datetime('now'), 0, NULL, datetime('now'), ?,
+                       NULL, datetime('now'), 0, NULL, datetime('now'), ?, ?,
                        datetime('now')
                    )
                    ON CONFLICT(user_id) DO UPDATE SET
@@ -1754,6 +1769,10 @@ class TelegramAuthBot(AdminPanelMixin):
                        self_next_restart_at = NULL,
                        self_last_billed_at = datetime('now'),
                        self_next_billing_at = excluded.self_next_billing_at,
+                       expiration_date = COALESCE(
+                           users.expiration_date,
+                           excluded.expiration_date
+                       ),
                        updated_at = datetime('now')''',
                 (
                     user_id,
@@ -1762,6 +1781,7 @@ class TelegramAuthBot(AdminPanelMixin):
                     process_pid,
                     str(session_file),
                     next_billing_at,
+                    default_expiry,
                 ),
             )
         self.admin_store.record_self_release(
