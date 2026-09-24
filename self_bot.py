@@ -47,12 +47,17 @@ from telethon.tl.functions.account import UpdateStatusRequest
 from telethon.errors import SessionPasswordNeededError, FloodWaitError
 
 BASE_DIR = Path(__file__).resolve().parent
+# Railway ephemeral filesystem: persist under RAILWAY_VOLUME_MOUNT_PATH when set.
+if os.getenv("RAILWAY_VOLUME_MOUNT_PATH"):
+    _PERSISTENT_ROOT = Path(os.getenv("RAILWAY_VOLUME_MOUNT_PATH"))
+else:
+    _PERSISTENT_ROOT = BASE_DIR
 load_dotenv(BASE_DIR / ".env")
 
 API_ID = int(os.getenv("TELEGRAM_API_ID", "0") or 0)
 API_HASH = os.getenv("TELEGRAM_API_HASH", "").strip()
 
-DATABASE_DIR = Path(os.getenv("BOT_DATA_DIR", BASE_DIR / "data"))
+DATABASE_DIR = Path(os.getenv("BOT_DATA_DIR", _PERSISTENT_ROOT / "data"))
 USERS_DB = DATABASE_DIR / "users.db"
 ACCOUNTS_DB = DATABASE_DIR / "accounts.db"
 

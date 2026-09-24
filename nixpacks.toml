@@ -1,0 +1,10 @@
+# Railway build config for the telegram selfbot betting project.
+# Python 3.11 matches the runtimes the code was developed and tested against.
+[phases.setup]
+aptPkgs = ["ffmpeg"]
+
+[phases.install]
+cacheDir = "/root/.cache/pip"
+
+[start]
+cmd = "python3 main_bot.py"

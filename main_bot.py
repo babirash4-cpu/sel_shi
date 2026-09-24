@@ -63,10 +63,19 @@ from telethon.errors import (
 )
 
 BASE_DIR = Path(__file__).resolve().parent
+# Railway has an ephemeral filesystem: only RAILWAY_VOLUME_MOUNT_PATH persists
+# across deploys and restarts. Keep everything writable there.
+if os.getenv("RAILWAY_VOLUME_MOUNT_PATH"):
+    _PERSISTENT_ROOT = Path(os.getenv("RAILWAY_VOLUME_MOUNT_PATH"))
+else:
+    _PERSISTENT_ROOT = BASE_DIR
+
 load_dotenv(BASE_DIR / ".env")
 
-DATA_DIR = Path(os.getenv("BOT_DATA_DIR", BASE_DIR / "data"))
-SESSIONS_DIR = Path(os.getenv("BOT_SESSIONS_DIR", BASE_DIR / "sessions"))
+DATA_DIR = Path(os.getenv("BOT_DATA_DIR", _PERSISTENT_ROOT / "data"))
+SESSIONS_DIR = Path(os.getenv("BOT_SESSIONS_DIR", _PERSISTENT_ROOT / "sessions"))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 USERS_DB = DATA_DIR / "users.db"
 SELF_BOT_SCRIPT = BASE_DIR / "self_bot.py"
 HELPER_BOT_SCRIPT = BASE_DIR / "helper_bot.py"
@@ -10445,7 +10454,13 @@ class TelegramAuthBot(AdminPanelMixin):
         print("🔑 API ID:", self.api_id)
         print("👑 مالک ربات:", self.owner_id)
         print(f"🏦 خزانه شرط‌بندی: {self.betting_treasury_balance():,} سکه")
-        self.application.run_polling(allowed_updates=Update.ALL_TYPES)
+        # Railway deploys a new container before the old one fully drains. The
+        # previous deployment's poller can still hold the getUpdates
+        # connection, which then raises Conflict on every poll here.
+        self.application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+        )
 
 # تنظیمات اصلی
 if __name__ == "__main__":

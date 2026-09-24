@@ -13,6 +13,12 @@ import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# Railway ephemeral filesystem: persist under RAILWAY_VOLUME_MOUNT_PATH when set.
+if os.getenv("RAILWAY_VOLUME_MOUNT_PATH"):
+    _PERSISTENT_ROOT = Path(os.getenv("RAILWAY_VOLUME_MOUNT_PATH"))
+else:
+    _PERSISTENT_ROOT = Path(__file__).resolve().parent
+
 import psutil
 from telegram import (
     CopyTextButton,
@@ -4824,7 +4830,10 @@ class HelperPanelBot:
         )
 
     def run(self) -> None:
-        self.application.run_polling(allowed_updates=Update.ALL_TYPES)
+        self.application.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True,
+        )
 
 
 def parse_arguments():
@@ -4840,7 +4849,7 @@ def parse_arguments():
 
 def main() -> None:
     args = parse_arguments()
-    data_dir = Path(args.data_dir) if args.data_dir else Path(__file__).parent / "data"
+    data_dir = Path(args.data_dir) if args.data_dir else _PERSISTENT_ROOT / "data"
     users_db = data_dir / "users.db"
     config = get_helper_config(users_db)
     token = config.get("token", "")
