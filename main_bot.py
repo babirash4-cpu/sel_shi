@@ -2256,7 +2256,7 @@ class TelegramAuthBot(AdminPanelMixin):
                     self.update_selfbot_runtime(
                         user_id,
                         self_pid=process.pid,
-                        self_enabled=1 if enable_watchdog else 0,
+                        self_enabled=1,
                         self_status="running",
                         self_last_error=None,
                         self_last_started_at=datetime.now().strftime(
