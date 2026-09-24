@@ -3001,6 +3001,17 @@ class TelegramAccount:
                        FROM users WHERE phone = ? LIMIT 1""",
                     (self.phone,),
                 ).fetchone()
+                if result is None and self.owner_id:
+                    result = conn.execute(
+                        """SELECT expiration_date, is_active, self_enabled
+                           FROM users WHERE user_id = ? LIMIT 1""",
+                        (int(self.owner_id),),
+                    ).fetchone()
+                    if result is not None:
+                        print(
+                            f"ℹ️ سلف {self.phone} بر اساس owner_id "
+                            f"{self.owner_id} تأیید شد"
+                        )
             if not result:
                 print(f"❌ رکورد مالک شماره {self.phone} پیدا نشد")
                 return False
